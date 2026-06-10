@@ -100,8 +100,10 @@ import {
   MediaMessage,
   Options,
   SendAudioDto,
+  SendButtonsDto,
   SendContactDto,
   SendLinkDto,
+  SendListLegacyDto,
   SendLocationDto,
   SendMediaDto,
   SendReactionDto,
@@ -1442,7 +1444,34 @@ export class WAStartupService {
             quoted: q,
           });
 
-          const id = await this.client.relayMessage(recipient, m.message, { messageId });
+          // Native-flow interactive messages (buttons/lists) only render as tappable when the
+          // relay carries a biz>interactive>native_flow node. Without it WhatsApp receives the
+          // message but ignores nativeFlowMessage and shows only the body text. Detect the
+          // interactive payload (it is wrapped in viewOnceMessage) and attach the hint.
+          const hasInteractive = !!(
+            (m.message as any)?.interactiveMessage ||
+            (m.message as any)?.viewOnceMessage?.message?.interactiveMessage
+          );
+          const relayOptions: any = { messageId };
+          if (hasInteractive) {
+            relayOptions.additionalNodes = [
+              {
+                tag: 'biz',
+                attrs: {},
+                content: [
+                  {
+                    tag: 'interactive',
+                    attrs: { type: 'native_flow', v: '1' },
+                    content: [
+                      { tag: 'native_flow', attrs: { name: 'mixed', v: '1' }, content: [] },
+                    ],
+                  },
+                ],
+              },
+            ];
+          }
+
+          const id = await this.client.relayMessage(recipient, m.message, relayOptions);
 
           m.key = {
             id: id,
@@ -1864,6 +1893,106 @@ export class WAStartupService {
           address: data.locationMessage?.address,
         },
       },
+      data?.options,
+    );
+  }
+
+  public async listMessage(data: SendListLegacyDto) {
+    // Render as a native-flow single_select interactive list (modern format WhatsApp accepts via
+    // the additionalNodes hint in sendMessageWithTyping), NOT the legacy listMessage proto which
+    // WhatsApp no longer renders. A tap returns the row id in nativeFlowResponseMessage.paramsJson.
+    const lm: any = data.listMessage;
+    const sections = (lm.sections || []).map((s: any) => ({
+      title: s.title || '',
+      rows: (s.rows || []).map((r: any) => ({
+        header: r.header || '',
+        title: r.title,
+        description: r.description || '',
+        id: String(r.rowId ?? r.id ?? r.title),
+      })),
+    }));
+
+    const bodyText = [lm.title, lm.description].filter(Boolean).join('\n');
+
+    const button = {
+      name: 'single_select',
+      buttonParamsJson: JSON.stringify({
+        title: lm.buttonText || 'اختر',
+        sections,
+      }),
+    };
+
+    return await this.sendMessageWithTyping(
+      data.number,
+      {
+        viewOnceMessage: {
+          message: {
+            messageContextInfo: {
+              deviceListMetadata: {},
+              deviceListMetadataVersion: 2,
+            },
+            interactiveMessage: {
+              header: { title: lm.title || '', hasMediaAttachment: false },
+              body: { text: bodyText },
+              footer: { text: lm.footer || lm.footerText || '' },
+              nativeFlowMessage: { buttons: [button] },
+            },
+          },
+        },
+      } as any,
+      data?.options,
+    );
+  }
+
+  public async buttonsMessage(data: SendButtonsDto) {
+    const bm: any = data.buttonsMessage;
+
+    const nameMap: Record<string, string> = {
+      reply: 'quick_reply',
+      copy: 'cta_copy',
+      url: 'cta_url',
+      call: 'cta_call',
+    };
+
+    const buttons = bm.buttons.map((b: any) => {
+      let params: any;
+      if (b.type === 'url') {
+        params = { display_text: b.displayText, url: b.url, merchant_url: b.url };
+      } else if (b.type === 'call') {
+        params = { display_text: b.displayText, phone_number: b.phoneNumber };
+      } else if (b.type === 'copy') {
+        params = { display_text: b.displayText, copy_code: b.copyCode };
+      } else {
+        params = { display_text: b.displayText, id: b.id || b.displayText, disabled: false };
+      }
+      return {
+        name: nameMap[b.type] || 'quick_reply',
+        buttonParamsJson: JSON.stringify(params),
+      };
+    });
+
+    const bodyText = [bm.title, bm.description].filter(Boolean).join('\n');
+
+    // Native-flow interactive message (modern Baileys format that renders tappable buttons),
+    // wrapped in viewOnceMessage + messageContextInfo as required for delivery.
+    return await this.sendMessageWithTyping(
+      data.number,
+      {
+        viewOnceMessage: {
+          message: {
+            messageContextInfo: {
+              deviceListMetadata: {},
+              deviceListMetadataVersion: 2,
+            },
+            interactiveMessage: {
+              header: { title: bm.title || '', hasMediaAttachment: false },
+              body: { text: bodyText },
+              footer: { text: bm.footer || '' },
+              nativeFlowMessage: { buttons },
+            },
+          },
+        },
+      } as any,
       data?.options,
     );
   }
