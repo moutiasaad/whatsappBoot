@@ -41,8 +41,10 @@ import {
   AudioMessageFileDto,
   MediaFileDto,
   SendAudioDto,
+  SendButtonsDto,
   SendContactDto,
   SendLinkDto,
+  SendListLegacyDto,
   SendLocationDto,
   SendMediaDto,
   SendReactionDto,
@@ -115,6 +117,10 @@ export class SendMessageController {
       .audioWhatsAppFile(data, fileName);
   }
 
+  public async sendList({ instanceName }: InstanceDto, data: SendListLegacyDto) {
+    return await this.waMonitor.waInstances.get(instanceName).listMessage(data);
+  }
+
   public async sendLocation({ instanceName }: InstanceDto, data: SendLocationDto) {
     return await this.waMonitor.waInstances.get(instanceName).locationMessage(data);
   }
@@ -130,9 +136,9 @@ export class SendMessageController {
     return await this.waMonitor.waInstances.get(instanceName).reactionMessage(data);
   }
 
-  // public async sendButtons({ instanceName }: InstanceDto, data: SendButtonsDto) {
-  //   return await this.waMonitor.waInstances.get(instanceName).buttonsMessage(data);
-  // }
+  public async sendButtons({ instanceName }: InstanceDto, data: SendButtonsDto) {
+    return await this.waMonitor.waInstances.get(instanceName).buttonsMessage(data);
+  }
 
   // public async sendList({ instanceName }: InstanceDto, data: SendListDto) {
   //   return await this.waMonitor.waInstances.get(instanceName).listButtons(data);

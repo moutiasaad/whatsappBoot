@@ -235,6 +235,7 @@ export const buttonsMessageSchema: JSONSchema7 = {
         footer: { type: 'string' },
         buttons: {
           type: 'array',
+          minItems: 1,
           items: {
             type: 'object',
             properties: {

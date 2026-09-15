@@ -38,7 +38,9 @@ import { NextFunction, Request, RequestHandler, Response, Router } from 'express
 import {
   audioFileMessageSchema,
   audioMessageSchema,
+  buttonsMessageSchema,
   contactMessageSchema,
+  listMessageLegacySchema,
   locationMessageSchema,
   mediaFileMessageSchema,
   mediaMessageSchema,
@@ -50,8 +52,10 @@ import {
   AudioMessageFileDto,
   MediaFileDto,
   SendAudioDto,
+  SendButtonsDto,
   SendContactDto,
   SendLinkDto,
+  SendListLegacyDto,
   SendLocationDto,
   SendMediaDto,
   SendReactionDto,
@@ -166,6 +170,15 @@ export function MessageRouter(
 
       res.status(HttpStatus.CREATED).json(response);
     })
+    .post(routerPath('sendListMessage'), ...guards, async (req, res) => {
+      const response = await dataValidate<SendListLegacyDto>({
+        request: req,
+        schema: listMessageLegacySchema,
+        execute: (instance, data) => sendMessageController.sendList(instance, data),
+      });
+
+      res.status(HttpStatus.CREATED).json(response);
+    })
     .post(routerPath('sendContact'), ...guards, async (req, res) => {
       const response = await dataValidate<SendContactDto>({
         request: req,
@@ -180,6 +193,15 @@ export function MessageRouter(
         request: req,
         schema: reactionMessageSchema,
         execute: (instance, data) => sendMessageController.sendReaction(instance, data),
+      });
+
+      res.status(HttpStatus.CREATED).json(response);
+    })
+    .post(routerPath('sendButtons'), ...guards, async (req, res) => {
+      const response = await dataValidate<SendButtonsDto>({
+        request: req,
+        schema: buttonsMessageSchema,
+        execute: (instance, data) => sendMessageController.sendButtons(instance, data),
       });
 
       res.status(HttpStatus.CREATED).json(response);
