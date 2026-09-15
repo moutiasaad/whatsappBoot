@@ -27,9 +27,11 @@ const extractUser = (...values: (string | undefined)[]) => {
 };
 
 export const getJidUser = (key: WAMessageKey) => {
-  return extractUser(key?.remoteJid, key?.remoteJid, key?.remoteJidAlt);
+  // remoteJidAlt is a Baileys 7.x-only field (LID/PN alt addressing); read it
+  // defensively so this compiles on 6.7.x and stays forward-compatible.
+  return extractUser(key?.remoteJid, key?.remoteJid, (key as any)?.remoteJidAlt);
 };
 
 export const getUserGroup = (key: WAMessageKey, participant?: string) => {
-  return extractUser(key?.participant, key?.participantAlt, participant);
+  return extractUser(key?.participant, (key as any)?.participantAlt, participant);
 };
