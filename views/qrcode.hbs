@@ -174,8 +174,9 @@
         });
     });
 
-    // WebSocket
-    const wsBaseUrl = "ws://localhost:8084/ws/events";
+    // WebSocket — derive from current page host so it works behind a reverse proxy
+    const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsBaseUrl = `${wsProto}//${window.location.host}/ws/events`;
     const reconnectInterval = 2000;
 
     function connectSocket(eventName, callback) {
