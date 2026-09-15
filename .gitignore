@@ -30,3 +30,5 @@ lerna-debug.log*
 .env
 /uploads
 /logs
+# Local API testing guide — contains the global api key, do not commit
+API_TESTING_GUIDE.md
